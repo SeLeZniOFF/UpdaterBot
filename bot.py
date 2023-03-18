@@ -1,35 +1,34 @@
-import telebot
 import os
+import re
+import telebot
+from dotenv import load_dotenv
 
-bot = telebot.TeleBot("6093967066:AAFrAi3LwxYZ0vj8PDJXce7RIY9OZt84jpA")
+# Load environment variables
+load_dotenv()
 
-# List of categories
-categories = ["1.Для_чата_стрингеров", "2.Для_поддержки_360", "3.Для_чата_Терминал_доработки", "4.Для_чата_Мультиадминка_Подм_Сегодня+муниципалы"]
+# Initialize the bot
+bot = telebot.TeleBot(os.getenv("BOT_TOKEN"))
 
-# Create files for each category, if they don't already exist
-for category in categories:
-    filename = category.split(".")[1] + ".md"
-    filepath = os.path.join(os.getcwd(), filename)
-    if not os.path.exists(filepath):
-        with open(filepath, "w", encoding="utf-8") as f:
-            f.write("# Заметки для категории {}\\\\n\\\\n".format(category))
+# Define the categories
+categories = ["1.Для чата стрингеров", "2.Для поддержки 360", "3.Для чата Терминал доработки", "4.МА ПодмСегодня муниципалы"]
 
 # Handler for /start command
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
-    bot.reply_to(message, "Привет! Этот бот поможет тебе сохранять заметки в разных категориях. Напиши /help, чтобы узнать как им пользоваться.")
-
-# Handler for /help command
-@bot.message_handler(commands=['help'])
-def send_help(message):
-    text = "Чтобы сохранить заметку, выбери категорию и напиши сообщение. Например, '1 Привет, чат стрингеров!'\\\\n\\\\n"
-    text += "Чтобы посмотреть заметки в категории, напиши '/view название_файла'.\\\\n"
-    text += "Категории:\\\\n"
+    markup = telebot.types.InlineKeyboardMarkup()
     for category in categories:
-        text += category + "\\\\n"
-    bot.reply_to(message, text)
+        button = telebot.types.InlineKeyboardButton(category.split(".")[1], callback_data=category)
+        markup.add(button)
+    bot.reply_to(message, "Привет! Этот бот поможет тебе сохранять заметки в разных категориях. Выбери категорию, в которую хочешь добавить заметку:", reply_markup=markup)
 
-# Handler for /view command
+# Handler for inline keyboard button presses
+@bot.callback_query_handler(func=lambda call: True)
+def save_note_callback(call):
+    categories_to_save = [call.data]
+    message = call.message
+    bot.answer_callback_query(call.id, "Заметка будет сохранена в категории {}".format(call.data.split(".")[1]))
+    bot.edit_message_text("Отправь сообщение, которое нужно сохранить:", message.chat.id, message.message_id)
+    bot.register_next_step_handler(message, save_note_multiple_categories, categories_to_save)
 @bot.message_handler(commands=['view'])
 def view_file(message):
     try:
@@ -50,22 +49,25 @@ def view_file(message):
         # If the file is not found, display an error message
         bot.reply_to(message, "Ошибка. Файл не найден.")
 
+
 # Handler for all other messages
-@bot.message_handler(func=lambda message: True)
-def save_note_multiple_categories(message):
-    categories_to_save = []
-    for word in message.text.split():
-        if word.isdigit() and int(word) in range(1, 5):
-            categories_to_save.append(categories[int(word)-1])
-    if categories_to_save:
-        for category in categories_to_save:
-            filename = category.split(".")[1] + ".md"
-            filepath = os.path.join(os.getcwd(), filename)
-            with open(filepath, "a", encoding="utf-8") as f:
-                f.write("📌 " + message.text.strip() + "\n\n")
-        bot.reply_to(message, "Заметка сохранена в {} категориях.".format(len(categories_to_save)))
-    else:
-        bot.reply_to(message, "Ошибка. Некорректные категории.")
+def save_note_multiple_categories(message, categories_to_save):
+    clean_message = re.sub(r'\\d+', '', message.text).strip()
+    saved_categories = []
+    for category in categories_to_save:
+        filename = category.split(".")[1].replace(" ", "_") + ".md"
+        filepath = os.path.join(os.getcwd(), filename)
+        with open(filepath, "a", encoding="utf-8") as f:
+            f.write("📌 " + clean_message + "\n\n")
+        saved_categories.append(category.split(".")[1])
+    categories_str = ', '.join(saved_categories)
+    bot.reply_to(message, f"Заметка сохранена в категориях: {categories_str}")
+    markup = telebot.types.InlineKeyboardMarkup()
+    for category in categories:
+        button = telebot.types.InlineKeyboardButton(category.split(".")[1], callback_data=category)
+        markup.add(button)
+    bot.send_message(message.chat.id, "Выбери категорию, в которую хочешь добавить заметку:", reply_markup=markup)
 
+
+# Start the bot
 bot.polling()
-

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="Encoding">
+    <file url="file://$PROJECT_DIR$/database.json" charset="windows-1251" />
+    <file url="file://$PROJECT_DIR$/stringers.txt" charset="windows-1251" />
+    <file url="file://$PROJECT_DIR$/Для поддержки 360.txt" charset="windows-1251" />
+    <file url="file://$PROJECT_DIR$/Для чата стрингеров.txt" charset="windows-1251" />
+  </component>
+</project>

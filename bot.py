@@ -2,6 +2,7 @@ import os
 import re
 import telebot
 from dotenv import load_dotenv
+from urllib.request import urlretrieve
 
 # Load environment variables
 load_dotenv()
@@ -10,14 +11,15 @@ load_dotenv()
 bot = telebot.TeleBot(os.getenv("BOT_TOKEN"))
 
 # Define the categories
-categories = ["1.Для чата стрингеров", "2.Для поддержки 360", "3.Для чата Терминал доработки", "4.МА ПодмСегодня муниципалы", "5.Тезисы к созвонам"]
+categories = ["1.Чат стрингеров", "2.Поддержка 360", "3.Терминал доработки", "4.МА ПодмСегодня муниципалы", "5.Тезисы к созвонам" , "6.Конспект созвонов"]
 
 def create_main_menu():
     markup = telebot.types.InlineKeyboardMarkup()
     for category in categories:
         save_button = telebot.types.InlineKeyboardButton("💾 " + category.split(".")[1], callback_data="save_" + category)
         view_button = telebot.types.InlineKeyboardButton("👁 " + category.split(".")[1], callback_data="view_" + category)
-        markup.row(save_button, view_button)
+        clear_button = telebot.types.InlineKeyboardButton("🗑 " + category.split(".")[1], callback_data="clear_" + category)
+        markup.row(save_button, view_button, clear_button)
     return markup
 
 # Handler for /start command
@@ -41,6 +43,8 @@ def handle_callback(call):
         save_note_callback(call, category)
     elif action == "view":
         view_notes_callback(call, category)
+    elif action == "clear":
+        clear_notes_callback(call, category)
 
 def save_note_callback(call, category):
     message = call.message
@@ -48,6 +52,18 @@ def save_note_callback(call, category):
     bot.edit_message_text("Отправь сообщение, которое нужно сохранить:", message.chat.id, message.message_id)
     bot.register_next_step_handler(message, save_note, category)
 
+
+
+def clear_notes_callback(call, category):
+    message = call.message
+    filename = category.split(".")[1].replace(" ", "_") + ".md"
+    filepath = os.path.join(os.getcwd(), filename)
+    try:
+        with open(filepath, "w", encoding="utf-8") as f:
+            f.write("")
+        bot.answer_callback_query(call.id, "Заметки в категории {} успешно очищены.".format(category.split(".")[1]))
+    except FileNotFoundError:
+        bot.answer_callback_query(call.id, "Ошибка. Файл не найден.")
 def view_notes_callback(call, category):
     message = call.message
     filename = category.split(".")[1].replace(" ", "_") + ".md"
